@@ -518,7 +518,7 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
 
 ## 👨‍💻 Author
 
-**[Your Name]**
+**[Anatoly Mazkun]**
 - GitHub: [@AMazkun](https://github.com/AMazkun)
 - LinkedIn: [Anatoly Mazkun](https://www.linkedin.com/in/anatoly-mazkun/)
 
