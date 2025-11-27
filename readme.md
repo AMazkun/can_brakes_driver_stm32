@@ -328,19 +328,19 @@ cansend can0 98FF0D09#0100000001
 ## 📂 Project Structure
 
 ```
-can_driver_g4/
+can_brakes_driver_stm32/
 ├── 📄 README.md                    # This file
 ├── 📄 can_driver_g4.ioc            # STM32CubeMX configuration
 ├── 📄 CMakeLists.txt               # CMake build configuration
 ├── 📄 Makefile                     # Build automation
 │
-├── 📁 _docs/                s       # Documentation
+├── 📁 _docs/                      # Documentation
 specification (UA)
-│   ├── gpio.png                    # GPIO configuration diagram
-│   ├── PROTOCOL.md        # Protocol documentation
-│   └── readme.pdf                  # Guide in Ukrainian
+│   ├── gpio.png                   # GPIO configuration diagram
+│   ├── PROTOCOL.md                # Protocol documentation
+│   └── readme.pdf                 # Guide in Ukrainian
 │
-├── 📁 _emu/                        # Renode emulation
+├── 📁 _emu/                       # Renode emulation
 │   ├── stm32g431.repl             # Platform description
 │   ├── stm32g431_brake.resc       # Startup script
 │   ├── brake_tests.robot          # Robot Framework tests
@@ -349,7 +349,7 @@ specification (UA)
 │   └── EXAMPLES.md                # Usage examples
 │
 ├── 📁 Core/
-│   ├── 📁 Inc/                     # Headers
+│   ├── 📁 Inc/                    # Headers
 │   │   ├── automate.h             # Protocol (auto-generated)
 │   │   ├── can.h                  # CAN driver interface
 │   │   ├── controller.h           # Business logic interface
