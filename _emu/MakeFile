@@ -1,0 +1,292 @@
+# Makefile for STM32G431 Brake Controller - Renode Testing
+# =========================================================
+
+# Project configuration
+PROJECT_NAME = stm32g431_brake
+RENODE_SCRIPT = stm32g431_brake.resc
+PLATFORM_FILE = stm32g431.repl
+ROBOT_TESTS = brake_tests.robot
+PYTHON_TESTS = python_test_scenario.py
+FIRMWARE_ELF = firmware.elf
+
+# Directories
+BUILD_DIR = build
+TEST_RESULTS_DIR = test_results
+LOGS_DIR = logs
+
+# Renode configuration
+RENODE = renode
+RENODE_TEST = renode-test
+RENODE_FLAGS = --disable-xwt
+
+# Robot Framework configuration
+ROBOT_FLAGS = --outputdir $(TEST_RESULTS_DIR) --loglevel INFO
+
+# Colors for output
+COLOR_RESET = \033[0m
+COLOR_GREEN = \033[32m
+COLOR_YELLOW = \033[33m
+COLOR_BLUE = \033[34m
+COLOR_RED = \033[31m
+
+# =========================================================
+# Main targets
+# =========================================================
+
+.PHONY: all
+all: check-deps test
+
+.PHONY: help
+help:
+	@echo "$(COLOR_BLUE)STM32G431 Brake Controller - Renode Testing$(COLOR_RESET)"
+	@echo ""
+	@echo "Available targets:"
+	@echo "  $(COLOR_GREEN)make test$(COLOR_RESET)              - Run all Robot Framework tests"
+	@echo "  $(COLOR_GREEN)make test-interactive$(COLOR_RESET) - Run Renode in interactive mode"
+	@echo "  $(COLOR_GREEN)make test-python$(COLOR_RESET)      - Run Python test scenarios"
+	@echo "  $(COLOR_GREEN)make test-quick$(COLOR_RESET)       - Run quick smoke tests"
+	@echo "  $(COLOR_GREEN)make test-heartbeat$(COLOR_RESET)   - Test heartbeat functionality"
+	@echo "  $(COLOR_GREEN)make test-brake$(COLOR_RESET)       - Test brake operations"
+	@echo "  $(COLOR_GREEN)make test-safety$(COLOR_RESET)      - Test safety features"
+	@echo "  $(COLOR_GREEN)make test-all$(COLOR_RESET)         - Run ALL tests (including slow)"
+	@echo "  $(COLOR_GREEN)make clean$(COLOR_RESET)            - Clean test results"
+	@echo "  $(COLOR_GREEN)make check-deps$(COLOR_RESET)       - Check dependencies"
+	@echo "  $(COLOR_GREEN)make report$(COLOR_RESET)           - Open test report in browser"
+	@echo ""
+
+# =========================================================
+# Dependency checking
+# =========================================================
+
+.PHONY: check-deps
+check-deps:
+	@echo "$(COLOR_BLUE)Checking dependencies...$(COLOR_RESET)"
+	@which $(RENODE) > /dev/null || (echo "$(COLOR_RED)Error: Renode not found$(COLOR_RESET)" && exit 1)
+	@which $(RENODE_TEST) > /dev/null || (echo "$(COLOR_RED)Error: renode-test not found$(COLOR_RESET)" && exit 1)
+	@which python3 > /dev/null || (echo "$(COLOR_RED)Error: python3 not found$(COLOR_RESET)" && exit 1)
+	@test -f $(FIRMWARE_ELF) || (echo "$(COLOR_YELLOW)Warning: firmware.elf not found$(COLOR_RESET)")
+	@test -f $(PLATFORM_FILE) || (echo "$(COLOR_RED)Error: Platform file not found$(COLOR_RESET)" && exit 1)
+	@test -f $(RENODE_SCRIPT) || (echo "$(COLOR_RED)Error: Renode script not found$(COLOR_RESET)" && exit 1)
+	@test -f $(ROBOT_TESTS) || (echo "$(COLOR_RED)Error: Robot tests not found$(COLOR_RESET)" && exit 1)
+	@echo "$(COLOR_GREEN)✓ All dependencies OK$(COLOR_RESET)"
+
+# =========================================================
+# Testing targets
+# =========================================================
+
+.PHONY: test
+test: check-deps create-dirs
+	@echo "$(COLOR_BLUE)Running Robot Framework tests...$(COLOR_RESET)"
+	@$(RENODE_TEST) $(ROBOT_FLAGS) $(ROBOT_TESTS)
+	@echo "$(COLOR_GREEN)✓ Tests completed$(COLOR_RESET)"
+	@echo "$(COLOR_YELLOW)Results in: $(TEST_RESULTS_DIR)/$(COLOR_RESET)"
+
+.PHONY: test-interactive
+test-interactive: check-deps
+	@echo "$(COLOR_BLUE)Starting Renode in interactive mode...$(COLOR_RESET)"
+	@echo "$(COLOR_YELLOW)Use 'start' to begin emulation$(COLOR_RESET)"
+	@$(RENODE) $(RENODE_SCRIPT)
+
+.PHONY: test-python
+test-python: check-deps
+	@echo "$(COLOR_BLUE)Running Python test scenarios...$(COLOR_RESET)"
+	@python3 $(PYTHON_TESTS)
+
+.PHONY: test-quick
+test-quick: check-deps create-dirs
+	@echo "$(COLOR_BLUE)Running quick smoke tests...$(COLOR_RESET)"
+	@$(RENODE_TEST) $(ROBOT_FLAGS) --include basic $(ROBOT_TESTS)
+
+.PHONY: test-heartbeat
+test-heartbeat: check-deps create-dirs
+	@echo "$(COLOR_BLUE)Running heartbeat tests...$(COLOR_RESET)"
+	@$(RENODE_TEST) $(ROBOT_FLAGS) --include heartbeat $(ROBOT_TESTS)
+
+.PHONY: test-brake
+test-brake: check-deps create-dirs
+	@echo "$(COLOR_BLUE)Running brake operation tests...$(COLOR_RESET)"
+	@$(RENODE_TEST) $(ROBOT_FLAGS) --include brake $(ROBOT_TESTS)
+
+.PHONY: test-safety
+test-safety: check-deps create-dirs
+	@echo "$(COLOR_BLUE)Running safety tests...$(COLOR_RESET)"
+	@$(RENODE_TEST) $(ROBOT_FLAGS) --include safety $(ROBOT_TESTS)
+
+.PHONY: test-all
+test-all: check-deps create-dirs
+	@echo "$(COLOR_BLUE)Running ALL tests (including slow)...$(COLOR_RESET)"
+	@$(RENODE_TEST) $(ROBOT_FLAGS) --loglevel DEBUG $(ROBOT_TESTS)
+
+# =========================================================
+# Specific test cases
+# =========================================================
+
+.PHONY: test-001
+test-001: check-deps create-dirs
+	@echo "$(COLOR_BLUE)Test 001: MCU Sends Heartbeat$(COLOR_RESET)"
+	@$(RENODE_TEST) $(ROBOT_FLAGS) --test "Test 001*" $(ROBOT_TESTS)
+
+.PHONY: test-004
+test-004: check-deps create-dirs
+	@echo "$(COLOR_BLUE)Test 004: Push Command$(COLOR_RESET)"
+	@$(RENODE_TEST) $(ROBOT_FLAGS) --test "Test 004*" $(ROBOT_TESTS)
+
+.PHONY: test-007
+test-007: check-deps create-dirs
+	@echo "$(COLOR_BLUE)Test 007: PC Heartbeat Timeout$(COLOR_RESET)"
+	@$(RENODE_TEST) $(ROBOT_FLAGS) --test "Test 007*" $(ROBOT_TESTS)
+
+# =========================================================
+# Reporting
+# =========================================================
+
+.PHONY: report
+report:
+	@echo "$(COLOR_BLUE)Opening test report...$(COLOR_RESET)"
+	@test -f $(TEST_RESULTS_DIR)/report.html && \
+		(xdg-open $(TEST_RESULTS_DIR)/report.html || open $(TEST_RESULTS_DIR)/report.html) || \
+		echo "$(COLOR_RED)No report found. Run 'make test' first.$(COLOR_RESET)"
+
+.PHONY: log
+log:
+	@echo "$(COLOR_BLUE)Opening test log...$(COLOR_RESET)"
+	@test -f $(TEST_RESULTS_DIR)/log.html && \
+		(xdg-open $(TEST_RESULTS_DIR)/log.html || open $(TEST_RESULTS_DIR)/log.html) || \
+		echo "$(COLOR_RED)No log found. Run 'make test' first.$(COLOR_RESET)"
+
+.PHONY: summary
+summary:
+	@echo "$(COLOR_BLUE)Test Summary:$(COLOR_RESET)"
+	@test -f $(TEST_RESULTS_DIR)/output.xml && \
+		python3 -c "import xml.etree.ElementTree as ET; \
+		tree = ET.parse('$(TEST_RESULTS_DIR)/output.xml'); \
+		root = tree.getroot(); \
+		stats = root.find('.//statistics/total/stat'); \
+		print('Tests: ' + stats.get('pass') + ' passed, ' + stats.get('fail') + ' failed')" || \
+		echo "$(COLOR_RED)No results found$(COLOR_RESET)"
+
+# =========================================================
+# Debugging
+# =========================================================
+
+.PHONY: debug
+debug: check-deps
+	@echo "$(COLOR_BLUE)Starting Renode with debug logging...$(COLOR_RESET)"
+	@$(RENODE) --log-level 3 $(RENODE_SCRIPT)
+
+.PHONY: debug-can
+debug-can: check-deps
+	@echo "$(COLOR_BLUE)Starting Renode with CAN debug...$(COLOR_RESET)"
+	@$(RENODE) $(RENODE_SCRIPT) -e "logLevel 3 sysbus.fdcan1; start"
+
+# =========================================================
+# Utility targets
+# =========================================================
+
+.PHONY: create-dirs
+create-dirs:
+	@mkdir -p $(TEST_RESULTS_DIR)
+	@mkdir -p $(LOGS_DIR)
+
+.PHONY: clean
+clean:
+	@echo "$(COLOR_YELLOW)Cleaning test results...$(COLOR_RESET)"
+	@rm -rf $(TEST_RESULTS_DIR)
+	@rm -rf $(LOGS_DIR)
+	@echo "$(COLOR_GREEN)✓ Cleaned$(COLOR_RESET)"
+
+.PHONY: clean-all
+clean-all: clean
+	@echo "$(COLOR_YELLOW)Cleaning all generated files...$(COLOR_RESET)"
+	@rm -rf $(BUILD_DIR)
+	@find . -name "*.pyc" -delete
+	@find . -name "__pycache__" -delete
+	@echo "$(COLOR_GREEN)✓ All cleaned$(COLOR_RESET)"
+
+# =========================================================
+# CI/CD targets
+# =========================================================
+
+.PHONY: ci
+ci: check-deps test summary
+	@echo "$(COLOR_GREEN)✓ CI pipeline completed$(COLOR_RESET)"
+
+.PHONY: ci-quick
+ci-quick: check-deps test-quick summary
+	@echo "$(COLOR_GREEN)✓ Quick CI pipeline completed$(COLOR_RESET)"
+
+# =========================================================
+# Development helpers
+# =========================================================
+
+.PHONY: watch
+watch:
+	@echo "$(COLOR_BLUE)Watching for changes...$(COLOR_RESET)"
+	@while true; do \
+		inotifywait -e modify $(ROBOT_TESTS) $(FIRMWARE_ELF) 2>/dev/null && \
+		make test-quick; \
+	done
+
+.PHONY: demo
+demo: check-deps
+	@echo "$(COLOR_BLUE)Running demo scenario...$(COLOR_RESET)"
+	@$(RENODE) $(RENODE_SCRIPT) -e "\
+		start; \
+		sleep 1; \
+		echo 'Sending PUSH command...'; \
+		push; \
+		sleep 0.5; \
+		simulate_pushed; \
+		sleep 1; \
+		echo 'Sending RELEASE command...'; \
+		release; \
+		sleep 0.5; \
+		simulate_released; \
+		sleep 1; \
+		pause; \
+		echo 'Demo completed!'"
+
+.PHONY: benchmark
+benchmark: check-deps create-dirs
+	@echo "$(COLOR_BLUE)Running performance benchmark...$(COLOR_RESET)"
+	@time $(RENODE_TEST) $(ROBOT_FLAGS) --loglevel WARN $(ROBOT_TESTS)
+
+# =========================================================
+# Info targets
+# =========================================================
+
+.PHONY: info
+info:
+	@echo "$(COLOR_BLUE)Project Information:$(COLOR_RESET)"
+	@echo "  Project:      $(PROJECT_NAME)"
+	@echo "  Firmware:     $(FIRMWARE_ELF)"
+	@echo "  Platform:     $(PLATFORM_FILE)"
+	@echo "  Tests:        $(ROBOT_TESTS)"
+	@echo "  Results dir:  $(TEST_RESULTS_DIR)"
+	@echo ""
+	@$(RENODE) --version
+	@echo ""
+	@python3 --version
+
+.PHONY: list-tests
+list-tests:
+	@echo "$(COLOR_BLUE)Available tests:$(COLOR_RESET)"
+	@grep -E "^Test [0-9]+" $(ROBOT_TESTS) | sed 's/^/  /'
+
+# =========================================================
+# Installation helpers
+# =========================================================
+
+.PHONY: install-deps
+install-deps:
+	@echo "$(COLOR_BLUE)Installing Python dependencies...$(COLOR_RESET)"
+	@pip3 install robotframework
+	@echo "$(COLOR_GREEN)✓ Dependencies installed$(COLOR_RESET)"
+	@echo "$(COLOR_YELLOW)Note: Install Renode separately from:$(COLOR_RESET)"
+	@echo "  https://github.com/renode/renode/releases"
+
+# =========================================================
+# Default target
+# =========================================================
+
+.DEFAULT_GOAL := help

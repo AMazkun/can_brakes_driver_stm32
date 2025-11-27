@@ -1,0 +1,111 @@
+admin@MacBookPro can_driver_g4 % renode _emu/stm32g431_brake_simple.resc
+23:50:57.6589 [WARNING] Couldn't start UI - falling back to console mode
+23:50:59.0159 [INFO] Loaded monitor commands from: /Applications/Renode.app/Contents/MacOS/scripts/monitor.py
+Renode, version 1.16.0 (bbd59425-202511180224)
+
+(monitor) i $CWD/_emu/stm32g431_brake_simple.resc
+23:50:59.6319 [INFO] Including script(s): /Users/admin/STM32Cube/can_driver_g4/_emu/stm32g431_brake_simple.resc
+23:50:59.6948 [INFO] System bus created.
+23:51:02.0075 [INFO] sysbus: Loading block of 26828 bytes length at 0x8000000.
+23:51:02.0333 [INFO] sysbus: Loading block of 672 bytes length at 0x80068CC.
+23:51:02.0338 [INFO] sysbus: Loading block of 1536 bytes length at 0x80068E0.
+
+======================================================================
+  STM32G431KBT6 Brake Controller Emulation (Simplified)
+======================================================================
+
+Available commands:
+  start                 - Start emulation
+  pause                 - Pause emulation
+  push                  - Send PUSH command to brake
+  release               - Send RELEASE command to brake
+  hb                    - Send PC heartbeat manually
+  send_pc_heartbeat     - Send PC heartbeat (full name)
+  set_position VALUE    - Set potentiometer ADC value (0-4095)
+  simulate_released     - Set brake to released position (ADC=200)
+  simulate_pushed       - Set brake to pushed position (ADC=3800)
+  simulate_midway       - Set brake to mid position (ADC=2000)
+
+Quick Test Sequence:
+  1. start
+  2. hb               (send PC heartbeat)
+  3. push             (send PUSH command)
+  4. simulate_pushed  (simulate physical movement)
+  5. release          (send RELEASE command)
+  6. simulate_released
+
+CAN IDs:
+  0x98FF0D00 - Heart_Beat_MSG (bidirectional)
+  0x98FF0D09 - Left_Brake_CMD (PC -> MCU)
+  0x98FF0D0A - Left_Brake_MSG (MCU -> PC)
+
+Note: Send 'hb' periodically to keep PC alive (every 50ms in real system)
+
+======================================================================
+
+(STM32G431_Brake) start
+Starting emulation...
+23:51:05.6531 [INFO] cpu: Guessing VectorTableOffset value to be 0x8000000.
+23:51:05.6843 [INFO] cpu: Setting initial values: PC = 0x80067C5, SP = 0x20008000.
+23:51:05.6900 [INFO] STM32G431_Brake: Machine started.
+23:51:05.7862 [WARNING] nvic: Unhandled read from offset 0xC88.
+23:51:05.7915 [WARNING] nvic: Unhandled write to offset 0xC88, value 0xF00000.
+(STM32G431_Brake) 23:51:05.7950 [WARNING] nvic: Unhandled read from offset 0xC0C.
+23:51:05.7954 [WARNING] nvic: Unhandled write to offset 0xC0C, value 0x5FA0300.
+23:51:05.7992 [WARNING] sysbus: [cpu: 0x80030BC] WriteDoubleWord to non existing peripheral at 0xE000E014, value 0x3E7F.
+23:51:05.8013 [WARNING] nvic: Unhandled read from offset 0xC20.
+23:51:05.8014 [WARNING] nvic: Unhandled write to offset 0xC20, value 0xF0000000.
+23:51:05.8020 [WARNING] sysbus: [cpu: 0x80030CC] WriteDoubleWord to non existing peripheral at 0xE000E018, value 0x0.
+23:51:05.8022 [WARNING] sysbus: [cpu: 0x80030D2] WriteDoubleWord to non existing peripheral at 0xE000E010, value 0x7.
+23:51:05.8027 [WARNING] nvic: Unhandled read from offset 0xC0C.
+23:51:05.8035 [WARNING] nvic: Unhandled read from offset 0xC20.
+23:51:05.8035 [WARNING] nvic: Unhandled write to offset 0xC20, value 0xF0000000.
+23:51:05.8683 [WARNING] sysbus: [cpu: 0x8002F2A] ReadDoubleWord from non existing peripheral at 0x40007008.
+23:51:05.8684 [WARNING] sysbus: [cpu: 0x8002F32] WriteDoubleWord to non existing peripheral at 0x40007008, value 0x4000.
+23:51:05.8694 [WARNING] sysbus: [cpu: 0x8002DEC] ReadDoubleWord from non existing peripheral at 0x40007000.
+23:51:05.8696 [WARNING] sysbus: [cpu: 0x8002E5E] ReadDoubleWord from non existing peripheral at 0x40007080.
+23:51:05.8696 [WARNING] sysbus: [cpu: 0x8002E68] WriteDoubleWord to non existing peripheral at 0x40007080, value 0x0.
+23:51:05.9184 [WARNING] sysbus: [cpu: 0x800231A] ReadDoubleWord from non existing peripheral at 0x40022000.
+23:51:05.9185 [WARNING] sysbus: [cpu: 0x8002328] ReadDoubleWord from non existing peripheral at 0x40022000.
+23:51:05.9186 [WARNING] sysbus: [cpu: 0x8002334] WriteDoubleWord to non existing peripheral at 0x40022000, value 0x4.
+23:51:05.9186 [WARNING] sysbus: [cpu: 0x8002338] ReadDoubleWord from non existing peripheral at 0x40022000.
+runMacro $push
+23:51:11.1753 [INFO] STM32G431_Brake: Injected CAN message: ID=0x98FF0D09, data=['0x1', '0x0', '0x0', '0x0', '0x1', '0x0', '0x0', '0x0']
+PUSH command injected
+(STM32G431_Brake) runMacro $hb
+23:51:15.6241 [INFO] STM32G431_Brake: Injected CAN message: ID=0x98FF0D00, data=['0x10', '0x0', '0x0', '0x0', '0x0', '0x1', '0x0', '0x0']
+PC Heartbeat injected
+(STM32G431_Brake) runMacro $release
+23:51:22.9488 [INFO] STM32G431_Brake: Injected CAN message: ID=0x98FF0D09, data=['0x2', '0x0', '0x0', '0x0', '0x0', '0x0', '0x0', '0x0']
+RELEASE command injected
+(STM32G431_Brake) runMacro $simulate_released
+Simulated: Brake RELEASED (ADC=200)
+(STM32G431_Brake) runMacro $simulate_pushed
+Simulated: Brake PUSHED (ADC=3800)
+(STM32G431_Brake) runMacro $reset
+Pausing emulation...
+23:51:40.7702 [INFO] STM32G431_Brake: Machine paused.
+23:51:40.7771 [INFO] sysbus: Loading block of 26828 bytes length at 0x8000000.
+23:51:40.7780 [INFO] sysbus: Loading block of 672 bytes length at 0x80068CC.
+23:51:40.7781 [INFO] sysbus: Loading block of 1536 bytes length at 0x80068E0.
+(STM32G431_Brake) start
+Starting emulation...
+23:52:22.9914 [INFO] STM32G431_Brake: Machine resumed.
+(STM32G431_Brake) runMacro $simulate_pushed
+Simulated: Brake PUSHED (ADC=3800)
+(STM32G431_Brake) runMacro $release
+23:52:37.2402 [INFO] STM32G431_Brake: Injected CAN message: ID=0x98FF0D09, data=['0x2', '0x0', '0x0', '0x0', '0x0', '0x0', '0x0', '0x0']
+RELEASE command injected
+(STM32G431_Brake) runMacro $hb
+23:52:52.7966 [INFO] STM32G431_Brake: Injected CAN message: ID=0x98FF0D00, data=['0x10', '0x0', '0x0', '0x0', '0x0', '0x1', '0x0', '0x0']
+PC Heartbeat injected
+(STM32G431_Brake) runMacro $hb
+23:52:54.5388 [INFO] STM32G431_Brake: Injected CAN message: ID=0x98FF0D00, data=['0x10', '0x0', '0x0', '0x0', '0x0', '0x1', '0x0', '0x0']
+PC Heartbeat injected
+(STM32G431_Brake) runMacro $push
+23:53:01.8634 [INFO] STM32G431_Brake: Injected CAN message: ID=0x98FF0D09, data=['0x1', '0x0', '0x0', '0x0', '0x1', '0x0', '0x0', '0x0']
+PUSH command injected
+(STM32G431_Brake) pause
+Pausing emulation...
+23:53:07.1271 [INFO] STM32G431_Brake: Machine paused.
+(STM32G431_Brake) 23:53:11.4054 [INFO] STM32G431_Brake: Disposed.

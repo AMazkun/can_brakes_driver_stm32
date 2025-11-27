@@ -1,0 +1,141 @@
+//using "platforms/cpus/stm32g4.repl"
+
+// STM32G431KBT6 Platform Description for Renode
+// MCU: ARM Cortex-M4F @ 170 MHz
+// Flash: 128 KB, RAM: 32 KB
+// Peripherals: FDCAN, TIM1, ADC1, GPIO
+
+// Memory configuration
+flash: Memory.MappedMemory @ sysbus 0x08000000
+    size: 0x20000  // 128 KB
+
+sram: Memory.MappedMemory @ sysbus 0x20000000
+    size: 0x8000   // 32 KB
+
+// FDCAN1 Message RAM - fixed alignment (Renode requires 0x400)
+fdcan1_msgram: Memory.MappedMemory @ sysbus 0x4000AC00
+    size: 0x400
+
+// FDCAN1 peripheral
+fdcan1: CAN.MCAN @ sysbus 0x4000A400
+    messageRAM: fdcan1_msgram
+
+// TIM1 - Advanced timer for PWM
+tim1: Timers.STM32_Timer @ sysbus 0x40012C00
+    frequency: 170000000
+    initialLimit: 0xFFFF
+
+// ADC1 - 12-bit ADC
+adc1: Analog.STM32_ADC @ sysbus 0x50000000
+
+// GPIO Port A
+gpioPortA: GPIOPort.STM32_GPIOPort @ sysbus <0x48000000, +0x400>
+    [0-15] -> exti@[0-15]
+
+// GPIO Port B (for LED)
+gpioPortB: GPIOPort.STM32_GPIOPort @ sysbus <0x48000400, +0x400>
+    [0-15] -> exti@[0-15]
+
+// External Interrupt Controller
+exti: IRQControllers.STM32F4_EXTI @ sysbus 0x40010400
+    numberOfOutputLines: 16
+    [0-4] -> nvic@[6-10]
+    [5-9] -> nvicInput23@[0-4]
+    [10-15] -> nvicInput40@[0-5]
+
+nvicInput23: Miscellaneous.CombinedInput @ none
+    numberOfInputs: 5
+    -> nvic@23
+
+nvicInput40: Miscellaneous.CombinedInput @ none
+    numberOfInputs: 6
+    -> nvic@40
+
+// USART2 for debugging (optional)
+usart2: UART.STM32F7_USART @ sysbus 0x40004400
+    frequency: 170000000
+    IRQ -> nvic@38
+
+// System configuration
+nvic: IRQControllers.NVIC @ sysbus 0xE000E100
+    priorityMask: 0xF0
+    systickFrequency: 170000000
+    IRQ -> cpu@0
+
+cpu: CPU.CortexM @ sysbus
+    cpuType: "cortex-m4f"
+    nvic: nvic
+
+// Watchdog
+iwdg: Timers.STM32_IndependentWatchdog @ sysbus 0x40003000
+    frequency: 32000
+    windowOption: false
+    defaultPrescaler: 0x04
+
+// RCC - Reset and Clock Control (Python-based, як у STM32G0)
+rcc: Python.PythonPeripheral @ sysbus 0x40021000
+    size: 0x400
+    initable: true
+    script: '''
+if request.IsInit:
+    lastVal = 0
+    data = {'hsion': 1, 'hseon': 1, 'pllon': 0, 'pllrdy': 0, 'sw': 0}
+
+if request.IsWrite:
+    if request.Offset == 0x0:  # CR register
+        data['hsion'] = (request.Value >> 8) & 0x1
+        data['hseon'] = (request.Value >> 16) & 0x1
+        data['pllon'] = (request.Value >> 24) & 0x1
+        if data['pllon']:
+            data['pllrdy'] = 1
+    elif request.Offset == 0x8:  # CFGR register
+        data['sw'] = request.Value & 0x3
+
+elif request.IsRead:
+    if request.Offset == 0x0:  # CR register
+        # Return HSI ready, HSE ready, PLL ready flags
+        request.Value = (data['hsion'] << 8) | (data['hsion'] << 10) | (data['hseon'] << 16) | (data['hseon'] << 17) | (data['pllon'] << 24) | (data['pllrdy'] << 25)
+    elif request.Offset == 0x8:  # CFGR register
+        # Return SWS (system clock switch status)
+        request.Value = (data['sw'] << 2)
+    else:
+        request.Value = 0x0
+'''
+
+// Virtual motor driver status
+motorStatus: Python.PythonPeripheral @ sysbus 0x60000000
+    size: 0x100
+    initable: true
+    script: '''
+if request.isInit:
+    # Motor state
+    self.pwm_duty = 0
+    self.direction = 0  # 0=release, 1=push
+    self.enabled = False
+    
+elif request.isRead:
+    if request.offset == 0x00:
+        request.value = self.pwm_duty
+    elif request.offset == 0x04:
+        request.value = self.direction
+    elif request.offset == 0x08:
+        request.value = 1 if self.enabled else 0
+        
+elif request.isWrite:
+    if request.offset == 0x00:
+        self.pwm_duty = request.value
+    elif request.offset == 0x04:
+        self.direction = request.value
+    elif request.offset == 0x08:
+        self.enabled = (request.value != 0)
+'''
+
+// Aliases for easier access
+sysbus:
+    init add:
+        Tag <0x48000000, 0x480003FF> "GPIOA"
+        Tag <0x48000400, 0x480007FF> "GPIOB"
+        Tag <0x4000A400, 0x4000A7FF> "FDCAN1"
+        Tag <0x40012C00, 0x40012FFF> "TIM1"
+        Tag <0x50000000, 0x500003FF> "ADC1"
+        Tag <0x40004400, 0x400047FF> "USART2"

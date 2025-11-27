@@ -1,0 +1,177 @@
+####################################################################
+# Renode Startup Script for STM32G431KBT6 Brake Controller
+####################################################################
+
+# Set variables
+$name?="STM32G431_Brake"
+$bin?=@/Users/admin/STM32Cube/can_driver_g4/build/Debug/can_driver_g4.elf
+
+# Create machine
+mach create $name
+
+# Load platform description
+machine LoadPlatformDescription @/Users/admin/STM32Cube/can_driver_g4/_emu/stm32g431.repl
+
+# Show analyzer windows
+showAnalyzer sysbus.usart2
+# showAnalyzer sysbus.fdcan1  # Not supported
+
+# Load binary
+sysbus LoadELF $bin
+
+# Setup PC CAN node (emulates PC sending commands)
+emulation CreateCANHub "PC_CAN_Node"
+connector Connect fdcan1 PC_CAN_Node
+
+# Setup logging
+# Увімкніть логування USART2 (якщо firmware виводить туди debug)
+logLevel -1 sysbus.usart2
+
+# Увімкніть логування FDCAN
+logLevel -1 sysbus.fdcan1
+
+logLevel 1 sysbus.tim1
+logLevel 1 sysbus.adc1
+
+# Configure initial ADC value (brake released position)
+sysbus.adc1 FeedSample 200 2
+
+# Create Python-based CAN message injector
+python
+"""
+import struct
+
+class CANInjector:
+    def __init__(self, machine):
+        self.machine = machine
+        
+    def inject_to_rx_fifo(self, can_id, data):
+        # Inject CAN message directly into FDCAN RX FIFO via registers
+        # This simulates hardware receiving a CAN message
+        # FDCAN Message RAM base: 0x4000AC00
+        msgram_base = 0x4000AC00
+        
+        # Write to RX FIFO 0 (simplified)
+        # Format: ID (4 bytes) + Data (8 bytes)
+        try:
+            # Write CAN ID to message RAM
+            self.machine.SystemBus.WriteDoubleWord(msgram_base, can_id)
+            
+            # Write data bytes
+            for i, byte_val in enumerate(data):
+                self.machine.SystemBus.WriteByte(msgram_base + 4 + i, byte_val)
+            
+            # Trigger RX interrupt by setting RX FIFO flag in IR register (offset 0x50)
+            ir_reg = 0x4000A450
+            current = self.machine.SystemBus.ReadDoubleWord(ir_reg)
+            self.machine.SystemBus.WriteDoubleWord(ir_reg, current | 0x01)  # RF0N flag
+            
+            msg = "Injected CAN message: ID=0x%X, data=%s" % (can_id, [hex(b) for b in data])
+            self.machine.Log(LogLevel.Info, msg)
+        except Exception as e:
+            err_msg = "Failed to inject CAN message: %s" % str(e)
+            self.machine.Log(LogLevel.Error, err_msg)
+    
+    def send_heartbeat(self, node_id=0x10):
+        data = [node_id, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00]
+        self.inject_to_rx_fifo(0x98FF0D00, data)
+    
+    def send_push(self):
+        data = [0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00]
+        self.inject_to_rx_fifo(0x98FF0D09, data)
+    
+    def send_release(self):
+        data = [0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+        self.inject_to_rx_fifo(0x98FF0D09, data)
+
+# Create global injector
+can_injector = CANInjector(self.Machine)
+"""
+
+macro hb
+"""
+python "can_injector.send_heartbeat()"
+echo "PC Heartbeat injected"
+"""
+
+macro push
+"""
+python "can_injector.send_push()"
+echo "PUSH command injected"
+"""
+
+macro release
+"""
+python "can_injector.send_release()"
+echo "RELEASE command injected"
+"""
+
+macro set_position
+"""
+    sysbus.adc1 FeedSample $0 2
+    echo "Set potentiometer to: $0"
+"""
+
+macro simulate_released
+"""
+    sysbus.adc1 FeedSample 200 2
+    echo "Simulated: Brake RELEASED (ADC=200)"
+"""
+
+macro simulate_pushed
+"""
+    sysbus.adc1 FeedSample 3800 2
+    echo "Simulated: Brake PUSHED (ADC=3800)"
+"""
+
+macro simulate_midway
+"""
+    sysbus.adc1 FeedSample 2000 2
+    echo "Simulated: Brake MIDWAY (ADC=2000)"
+"""
+
+# Print help
+echo ""
+echo "======================================================================"
+echo "  STM32G431KBT6 Brake Controller Emulation (Simplified)"
+echo "======================================================================"
+echo ""
+echo "Available commands:"
+echo "  start                 - Start emulation"
+echo "  pause                 - Pause emulation"
+echo "  push                  - Send PUSH command to brake"
+echo "  release               - Send RELEASE command to brake"
+echo "  hb                    - Send PC heartbeat manually"
+echo "  send_pc_heartbeat     - Send PC heartbeat (full name)"
+echo "  set_position VALUE    - Set potentiometer ADC value (0-4095)"
+echo "  simulate_released     - Set brake to released position (ADC=200)"
+echo "  simulate_pushed       - Set brake to pushed position (ADC=3800)"
+echo "  simulate_midway       - Set brake to mid position (ADC=2000)"
+echo ""
+echo "Quick Test Sequence:"
+echo "  1. start"
+echo "  2. hb               (send PC heartbeat)"
+echo "  3. push             (send PUSH command)"
+echo "  4. simulate_pushed  (simulate physical movement)"
+echo "  5. release          (send RELEASE command)"
+echo "  6. simulate_released"
+echo ""
+echo "CAN IDs:"
+echo "  0x98FF0D00 - Heart_Beat_MSG (bidirectional)"
+echo "  0x98FF0D09 - Left_Brake_CMD (PC -> MCU)"
+echo "  0x98FF0D0A - Left_Brake_MSG (MCU -> PC)"
+echo ""
+echo "Note: Send 'hb' periodically to keep PC alive (every 50ms in real system)"
+echo ""
+echo "======================================================================"
+echo ""
+
+# Start emulation automatically (optional)
+# Uncomment to auto-start:
+# start
+
+macro reset
+"""
+pause
+sysbus LoadELF $bin
+"""
